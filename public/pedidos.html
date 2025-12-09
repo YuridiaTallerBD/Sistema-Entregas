@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pedidos - Sistema de Entregas</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --yuri-purple: #8b5cf6;
+      --yuri-purple-dark: #6d28d9;
+      --yuri-purple-light: #f3e8ff;
+    }
+
+    body {
+      background: linear-gradient(135deg, #fdf2ff, #e9d5ff);
+      min-height: 100vh;
+    }
+
+    .navbar-yuri {
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+    }
+
+    .navbar-yuri .navbar-brand {
+      color: var(--yuri-purple-dark);
+    }
+
+    .navbar-yuri .nav-link {
+      color: #6b7280;
+    }
+
+    .navbar-yuri .nav-link:hover,
+    .navbar-yuri .nav-link.active {
+      color: var(--yuri-purple-dark);
+      font-weight: 600;
+    }
+
+    .btn-primary,
+    .btn-success {
+      background-color: var(--yuri-purple);
+      border-color: var(--yuri-purple);
+    }
+
+    .btn-primary:hover,
+    .btn-success:hover {
+      background-color: var(--yuri-purple-dark);
+      border-color: var(--yuri-purple-dark);
+    }
+
+    .card-yuri {
+      border-radius: 18px;
+      border: none;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .table thead {
+      background: var(--yuri-purple-dark);
+      color: white;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: #f9f5ff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <h1 class="text-center fw-bold mb-2" style="color:#4c1d95;">Sistema de Entregas</h1>
+  <p class="text-center text-secondary mb-4">Gestión de Pedidos</p>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/">INICIO</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
+          <li class="nav-item"><a class="nav-link" href="/repartidores.html">Repartidores</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/pedidos.html">Pedidos</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Formulario -->
+  <div class="card card-yuri mb-4">
+    <div class="card-body">
+      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar nuevo pedido</h3>
+
+      <form id="form-pedido">
+        <div class="mb-3">
+          <label class="form-label">Cliente</label>
+          <input type="text" id="cliente" class="form-control" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Teléfono del cliente (opcional)</label>
+          <input type="text" id="telefonoCliente" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Dirección</label>
+          <textarea id="direccion" class="form-control" required></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Zona</label>
+          <select id="zona" class="form-select" required></select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Notas (opcional)</label>
+          <textarea id="notas" class="form-control"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Guardar pedido</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div class="card card-yuri">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="fw-bold mb-0" style="color:#4c1d95;">Pedidos registrados</h3>
+        <button id="btn-recargar" class="btn btn-outline-primary btn-sm">
+          Recargar
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Dirección</th>
+              <th>Zona</th>
+              <th>Repartidor</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-pedidos"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = "/api";
+
+  // Cargar zonas
+  async function cargarZonas() {
+    const res = await fetch(`${API}/zonas`);
+    const zonas = await res.json();
+    const sel = document.getElementById("zona");
+    sel.innerHTML = "";
+
+    zonas.forEach(z => {
+      const opt = document.createElement("option");
+      opt.value = z._id;
+      opt.textContent = `${z.nombre} (${z.codigo})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  // Obtener repartidores
+  async function getRepartidores() {
+    const res = await fetch(`${API}/repartidores`);
+    return await res.json();
+  }
+
+  // Cargar pedidos
+  async function cargarPedidos() {
+    const res = await fetch(`${API}/pedidos`);
+    const pedidos = await res.json();
+    const tbody = document.getElementById("tabla-pedidos");
+    tbody.innerHTML = "";
+
+    pedidos.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.clienteNombre}</td>
+        <td>${p.direccion}</td>
+        <td>${p.zona ? p.zona.nombre + " (" + p.zona.codigo + ")" : ""}</td>
+        <td>${p.repartidor ? p.repartidor.nombre : "Sin asignar"}</td>
+        <td>${p.estado}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-secondary mb-1" onclick="asignarRepartidor('${p._id}')">
+            Asignar
+          </button>
+          <button class="btn btn-sm btn-outline-warning mb-1" onclick="cambiarEstado('${p._id}', 'en_camino')">
+            En camino
+          </button>
+          <button class="btn btn-sm btn-outline-success mb-1" onclick="cambiarEstado('${p._id}', 'entregado')">
+            Entregado
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Crear pedido
+  document.getElementById("form-pedido").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const clienteNombre = document.getElementById("cliente").value;
+    const clienteTelefono = document.getElementById("telefonoCliente").value;
+    const direccion = document.getElementById("direccion").value;
+    const zona = document.getElementById("zona").value;
+    const notas = document.getElementById("notas").value;
+
+    await fetch(`${API}/pedidos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clienteNombre, clienteTelefono, direccion, zona, notas })
+    });
+
+    e.target.reset();
+    cargarPedidos();
+  });
+
+  // Asignar repartidor
+  async function asignarRepartidor(idPedido) {
+    const reps = await getRepartidores();
+    if (!reps.length) {
+      alert("No hay repartidores registrados.");
+      return;
+    }
+
+    let lista = reps.map(r => `${r._id} - ${r.nombre}`).join("\n");
+    const elegido = prompt("Escribe el ID del repartidor a asignar:\n\n" + lista);
+    if (!elegido) return;
+
+    await fetch(`${API}/pedidos/${idPedido}/asignar`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repartidorId: elegido })
+    });
+
+    cargarPedidos();
+  }
+
+  // Cambiar estado
+  async function cambiarEstado(idPedido, nuevoEstado) {
+    await fetch(`${API}/pedidos/${idPedido}/estado`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
+
+    cargarPedidos();
+  }
+
+  document.getElementById("btn-recargar").addEventListener("click", cargarPedidos);
+
+  cargarZonas();
+  cargarPedidos();
+</script>
+
+<script>
+  // Verificar si el usuario está autenticado
+  async function checkAuth() {
+    try {
+      const res = await fetch("/auth/user");
+      if (res.status === 401) {
+        // No hay sesión → mandar a login
+        window.location.href = "/login.html";
+      } else {
+        const data = await res.json();
+        console.log("Usuario logueado:", data.user?.nombre);
+        // Aquí podrías poner el nombre en la navbar si quieres
+      }
+    } catch (err) {
+      console.error("Error verificando autenticación:", err);
+      window.location.href = "/login.html";
+    }
+  }
+
+  // Ejecutar verificación al cargar la página
+  checkAuth();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

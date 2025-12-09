@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Repartidores - Sistema de Entregas</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --yuri-purple: #8b5cf6;
+      --yuri-purple-dark: #6d28d9;
+      --yuri-purple-light: #f3e8ff;
+    }
+
+    body {
+      background: linear-gradient(135deg, #fdf2ff, #e9d5ff);
+      min-height: 100vh;
+    }
+
+    .navbar-yuri {
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+    }
+
+    .navbar-yuri .navbar-brand {
+      color: var(--yuri-purple-dark);
+    }
+
+    .navbar-yuri .nav-link {
+      color: #6b7280;
+    }
+
+    .navbar-yuri .nav-link:hover,
+    .navbar-yuri .nav-link.active {
+      color: var(--yuri-purple-dark);
+      font-weight: 600;
+    }
+
+    .btn-primary,
+    .btn-success {
+      background-color: var(--yuri-purple);
+      border-color: var(--yuri-purple);
+    }
+
+    .btn-primary:hover,
+    .btn-success:hover {
+      background-color: var(--yuri-purple-dark);
+      border-color: var(--yuri-purple-dark);
+    }
+
+    .card-yuri {
+      border-radius: 18px;
+      border: none;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .table thead {
+      background: var(--yuri-purple-dark);
+      color: white;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: #f9f5ff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <h1 class="text-center fw-bold mb-2" style="color:#4c1d95;">Sistema de Entregas</h1>
+  <p class="text-center text-secondary mb-4">Gestión de Repartidores</p>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/">INICIO</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/repartidores.html">Repartidores</a></li>
+          <li class="nav-item"><a class="nav-link" href="/pedidos.html">Pedidos</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Formulario -->
+  <div class="card card-yuri mb-4">
+    <div class="card-body">
+      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar nuevo repartidor</h3>
+
+      <form id="form-repartidor">
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" id="nombre" class="form-control" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Teléfono</label>
+          <input type="text" id="telefono" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Vehículo</label>
+          <select id="vehiculo" class="form-select">
+            <option value="Moto">Moto</option>
+            <option value="Bicicleta">Bicicleta</option>
+            <option value="Auto">Auto</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Zona</label>
+          <select id="zona" class="form-select" required>
+            <option value="">-- Selecciona una zona --</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-success">Guardar repartidor</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div class="card card-yuri">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="fw-bold mb-0" style="color:#4c1d95;">Repartidores registrados</h3>
+        <button id="btn-recargar" class="btn btn-outline-primary btn-sm">
+          Recargar
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Vehículo</th>
+              <th>Zona</th>
+              <th>ID</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-repartidores"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "/api";
+
+  async function cargarZonasSelect() {
+    try {
+      const res = await fetch(`${API_BASE}/zonas`);
+      const zonas = await res.json();
+      const selectZona = document.getElementById("zona");
+      selectZona.innerHTML = '<option value="">-- Selecciona una zona --</option>';
+
+      zonas.forEach(z => {
+        const opt = document.createElement("option");
+        opt.value = z._id;
+        opt.textContent = `${z.nombre} (${z.codigo})`;
+        selectZona.appendChild(opt);
+      });
+    } catch (err) {
+      alert("Error al cargar zonas: " + err.message);
+    }
+  }
+
+  async function cargarRepartidores() {
+    try {
+      const res = await fetch(`${API_BASE}/repartidores`);
+      const reps = await res.json();
+      const tbody = document.getElementById("tabla-repartidores");
+      tbody.innerHTML = "";
+
+      reps.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.nombre}</td>
+          <td>${r.telefono || ""}</td>
+          <td>${r.vehiculo || ""}</td>
+          <td>${r.zona ? r.zona.nombre + " (" + r.zona.codigo + ")" : ""}</td>
+          <td class="small text-muted">${r._id}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      alert("Error al cargar repartidores: " + err.message);
+    }
+  }
+
+  document.getElementById("form-repartidor").addEventListener("submit", async e => {
+    e.preventDefault();
+    const nombre = document.getElementById("nombre").value;
+    const telefono = document.getElementById("telefono").value;
+    const vehiculo = document.getElementById("vehiculo").value;
+    const zona = document.getElementById("zona").value;
+
+    if (!zona) {
+      alert("Selecciona una zona");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/repartidores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono, vehiculo, zona })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert("Error al crear repartidor: " + (data.error || res.statusText));
+        return;
+      }
+
+      e.target.reset();
+      cargarRepartidores();
+    } catch (err) {
+      alert("Error de red: " + err.message);
+    }
+  });
+
+  document.getElementById("btn-recargar").addEventListener("click", cargarRepartidores);
+
+  cargarZonasSelect();
+  cargarRepartidores();
+</script>
+<script>
+  // Verificar si el usuario está autenticado
+  async function checkAuth() {
+    try {
+      const res = await fetch("/auth/user");
+      if (res.status === 401) {
+        // No hay sesión → mandar a login
+        window.location.href = "/login.html";
+      } else {
+        const data = await res.json();
+        console.log("Usuario logueado:", data.user?.nombre);
+        // Aquí podrías poner el nombre en la navbar si quieres
+      }
+    } catch (err) {
+      console.error("Error verificando autenticación:", err);
+      window.location.href = "/login.html";
+    }
+  }
+
+  // Ejecutar verificación al cargar la página
+  checkAuth();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

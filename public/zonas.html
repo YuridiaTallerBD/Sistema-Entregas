@@ -97,7 +97,7 @@
   <!-- Formulario -->
   <div class="card card-yuri mb-4">
     <div class="card-body">
-      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar nueva zona</h3>
+      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar / editar zona</h3>
       <form id="form-zona">
         <div class="mb-3">
           <label class="form-label">Nombre de la zona</label>
@@ -114,7 +114,14 @@
           <textarea id="descripcion" class="form-control"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-success">Guardar zona</button>
+        <div class="d-flex gap-2">
+          <button type="submit" id="btn-guardar" class="btn btn-success">
+            Guardar zona
+          </button>
+          <button type="button" id="btn-cancelar-edicion" class="btn btn-outline-secondary btn-sm" style="display:none;">
+            Cancelar edición
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -137,6 +144,7 @@
               <th>Código</th>
               <th>Descripción</th>
               <th>ID</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-zonas"></tbody>
@@ -144,75 +152,175 @@
       </div>
     </div>
   </div>
+
+  <!-- Nota sobre fragmentación -->
+  <div class="card card-yuri mt-4">
+    <div class="card-body">
+      <h5 class="fw-bold mb-2" style="color:#4c1d95;">Zonas como base de la fragmentación horizontal</h5>
+      <p class="mb-1">
+        Las zonas <strong>NORTE</strong>, <strong>CENTRO</strong> y <strong>SUR</strong> definidas aquí se usan como
+        <strong>claves de fragmentación horizontal</strong> para distribuir los <strong>repartidores</strong> y los
+        <strong>pedidos</strong> entre las distintas bases de datos (base_norte, base_centro, base_sur).
+      </p>
+      <p class="mb-0 text-muted small">
+        Si cambias o agregas zonas, estos códigos se pueden usar para crear nuevos fragmentos lógicos.
+      </p>
+    </div>
+  </div>
 </div>
 
 <script>
   const API_BASE = "/api";
+  let zonasCache = [];
+  let editandoId = null;
+
+  const form = document.getElementById("form-zona");
+  const btnGuardar = document.getElementById("btn-guardar");
+  const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
+
+  function limpiarFormulario() {
+    form.reset();
+    editandoId = null;
+    btnGuardar.textContent = "Guardar zona";
+    btnCancelarEdicion.style.display = "none";
+  }
+
+  function pintarTabla(lista) {
+    const tbody = document.getElementById("tabla-zonas");
+    tbody.innerHTML = "";
+
+    lista.forEach(z => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${z.nombre}</td>
+        <td>${z.codigo}</td>
+        <td>${z.descripcion || ""}</td>
+        <td class="small text-muted">${z._id}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary me-1" onclick="editarZona('${z._id}')">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarZona('${z._id}')">Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 
   async function cargarZonas() {
     try {
       const res = await fetch(`${API_BASE}/zonas`);
       const zonas = await res.json();
-      const tbody = document.getElementById("tabla-zonas");
-      tbody.innerHTML = "";
-
-      zonas.forEach(z => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${z.nombre}</td>
-          <td>${z.codigo}</td>
-          <td>${z.descripcion || ""}</td>
-          <td class="small text-muted">${z._id}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+      zonasCache = zonas;
+      pintarTabla(zonas);
     } catch (err) {
       alert("Error al cargar zonas: " + err.message);
     }
   }
 
-  document.getElementById("form-zona").addEventListener("submit", async e => {
+  // Crear / actualizar
+  form.addEventListener("submit", async e => {
     e.preventDefault();
     const nombre = document.getElementById("nombre").value;
     const codigo = document.getElementById("codigo").value;
     const descripcion = document.getElementById("descripcion").value;
 
+    const cuerpo = { nombre, codigo, descripcion };
+
     try {
-      const res = await fetch(`${API_BASE}/zonas`, {
-        method: "POST",
+      let url = `${API_BASE}/zonas`;
+      let method = "POST";
+
+      if (editandoId) {
+        url = `${API_BASE}/zonas/${editandoId}`;
+        method = "PUT";
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, codigo, descripcion })
+        body: JSON.stringify(cuerpo)
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        alert("Error al crear zona: " + (data.error || res.statusText));
+        const data = await res.json().catch(() => ({}));
+        alert("Error al guardar zona: " + (data.error || res.statusText));
         return;
       }
 
-      e.target.reset();
+      limpiarFormulario();
       cargarZonas();
     } catch (err) {
       alert("Error de red: " + err.message);
     }
   });
 
-  document.getElementById("btn-recargar").addEventListener("click", cargarZonas);
+  // Editar
+  function editarZona(id) {
+    const z = zonasCache.find(x => x._id === id);
+    if (!z) {
+      alert("Zona no encontrada");
+      return;
+    }
 
+    document.getElementById("nombre").value = z.nombre || "";
+    document.getElementById("codigo").value = z.codigo || "";
+    document.getElementById("descripcion").value = z.descripcion || "";
+
+    editandoId = id;
+    btnGuardar.textContent = "Actualizar zona";
+    btnCancelarEdicion.style.display = "inline-block";
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Eliminar
+  async function eliminarZona(id) {
+    if (!confirm("¿Seguro que deseas eliminar esta zona?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/zonas/${id}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al eliminar zona: " + (data.error || res.statusText));
+        return;
+      }
+
+      cargarZonas();
+    } catch (err) {
+      alert("Error de red: " + err.message);
+    }
+  }
+
+  // Hacerlas globales para los onclick
+  window.editarZona = editarZona;
+  window.eliminarZona = eliminarZona;
+
+  // Botones
+  document.getElementById("btn-recargar").addEventListener("click", () => {
+    limpiarFormulario();
+    cargarZonas();
+  });
+
+  btnCancelarEdicion.addEventListener("click", () => {
+    limpiarFormulario();
+  });
+
+  // Cargar al inicio
   cargarZonas();
 </script>
+
 <script>
   // Verificar si el usuario está autenticado
   async function checkAuth() {
     try {
       const res = await fetch("/auth/user");
       if (res.status === 401) {
-        // No hay sesión → mandar a login
         window.location.href = "/login.html";
       } else {
         const data = await res.json();
         console.log("Usuario logueado:", data.user?.nombre);
-        // Aquí podrías poner el nombre en la navbar si quieres
       }
     } catch (err) {
       console.error("Error verificando autenticación:", err);
@@ -220,7 +328,6 @@
     }
   }
 
-  // Ejecutar verificación al cargar la página
   checkAuth();
 </script>
 

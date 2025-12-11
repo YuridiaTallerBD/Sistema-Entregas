@@ -78,16 +78,22 @@
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="/">INICIO</a>
+      <a class="navbar-brand fw-bold" href="/">Inicio</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
-          <li class="nav-item"><a class="nav-link" href="/repartidores.html">Repartidores</a></li>
-          <li class="nav-item"><a class="nav-link active" href="/pedidos.html">Pedidos</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="/repartidores.html">Registro de repartidores</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/pedidos.html">Gestión de pedidos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/reportes.html">Reportes de entrega</a>
+          </li>
         </ul>
       </div>
     </div>
@@ -96,7 +102,9 @@
   <!-- Formulario -->
   <div class="card card-yuri mb-4">
     <div class="card-body">
-      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar nuevo pedido</h3>
+      <h3 class="fw-bold mb-3" style="color:#4c1d95;" id="titulo-form">
+        Registrar nuevo pedido
+      </h3>
 
       <form id="form-pedido">
         <div class="mb-3">
@@ -116,7 +124,23 @@
 
         <div class="mb-3">
           <label class="form-label">Zona</label>
-          <select id="zona" class="form-select" required></select>
+          <!-- Ahora usamos directamente NORTE / SUR, sin /api/zonas -->
+          <select id="zonaCodigo" class="form-select" required>
+            <option value="">-- Selecciona una zona --</option>
+            <option value="NORTE">Zona NORTE</option>
+            <option value="SUR">Zona SUR</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Estado</label>
+          <select id="estado" class="form-select">
+            <option value="pendiente">pendiente</option>
+            <option value="asignado">asignado</option>
+            <option value="en_camino">en_camino</option>
+            <option value="entregado">entregado</option>
+            <option value="cancelado">cancelado</option>
+          </select>
         </div>
 
         <div class="mb-3">
@@ -124,7 +148,12 @@
           <textarea id="notas" class="form-control"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-success">Guardar pedido</button>
+        <button type="submit" class="btn btn-success" id="btn-guardar">
+          Guardar pedido
+        </button>
+        <button type="button" class="btn btn-secondary ms-2 d-none" id="btn-cancelar-edicion">
+          Cancelar edición
+        </button>
       </form>
     </div>
   </div>
@@ -154,6 +183,26 @@
           <tbody id="tabla-pedidos"></tbody>
         </table>
       </div>
+
+      <!-- Fragmentación horizontal -->
+      <div class="mt-4 p-3 rounded-3" style="background-color:#f9fafb; border:1px solid #e5e7eb;">
+        <h5 class="fw-bold mb-2" style="color:#111827;">
+          Ver pedidos por zona (fragmentación horizontal)
+        </h5>
+        <p class="text-muted mb-3">
+          Filtra los pedidos que pertenecen a una zona específica del sistema distribuido.
+        </p>
+        <button class="btn btn-primary me-2 mb-2" onclick="filtrarPorZona('NORTE')">
+          Ver zona NORTE
+        </button>
+        <button class="btn btn-primary me-2 mb-2" onclick="filtrarPorZona('SUR')">
+          Ver zona SUR
+        </button>
+        <button class="btn btn-outline-secondary mb-2" onclick="filtrarPorZona(null)">
+          Ver todas las zonas
+        </button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -161,51 +210,90 @@
 <script>
   const API = "/api";
 
-  // Cargar zonas
-  async function cargarZonas() {
-    const res = await fetch(`${API}/zonas`);
-    const zonas = await res.json();
-    const sel = document.getElementById("zona");
-    sel.innerHTML = "";
+  let pedidosCache = [];
+  let editingPedidoId = null;
 
-    zonas.forEach(z => {
-      const opt = document.createElement("option");
-      opt.value = z._id;
-      opt.textContent = `${z.nombre} (${z.codigo})`;
-      sel.appendChild(opt);
-    });
+  // Aquí guardamos los repartidores por zona NORTE/SUR
+  const repartidoresPorZona = {
+    NORTE: [],
+    SUR: [],
+  };
+
+  const formPedido = document.getElementById("form-pedido");
+  const btnGuardar = document.getElementById("btn-guardar");
+  const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
+  const tituloForm = document.getElementById("titulo-form");
+
+  // ------- REPARTIDORES POR ZONA (para llenar los selects) --------
+  async function cargarRepartidoresPorZona() {
+    try {
+      const codigos = ["NORTE", "SUR"];
+
+      for (const cod of codigos) {
+        const res = await fetch(`${API}/repartidores/por-zona/${cod}`);
+        if (res.ok) {
+          repartidoresPorZona[cod] = await res.json();
+        } else {
+          repartidoresPorZona[cod] = [];
+        }
+      }
+    } catch (err) {
+      console.error("Error cargando repartidores por zona:", err);
+    }
   }
 
-  // Obtener repartidores
-  async function getRepartidores() {
-    const res = await fetch(`${API}/repartidores`);
-    return await res.json();
-  }
-
-  // Cargar pedidos
-  async function cargarPedidos() {
-    const res = await fetch(`${API}/pedidos`);
-    const pedidos = await res.json();
+  // ------- RENDER TABLA --------
+  function renderPedidos(lista) {
     const tbody = document.getElementById("tabla-pedidos");
     tbody.innerHTML = "";
 
-    pedidos.forEach(p => {
+    if (!lista.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td colspan="6" class="text-center text-muted">No hay pedidos registrados.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    lista.forEach((p) => {
+      const zonaCod = (p.zonaCodigo || "").toUpperCase(); // "NORTE" o "SUR"
+      const repsZona = repartidoresPorZona[zonaCod] || [];
+
+      let opciones = '<option value="">Sin asignar</option>';
+
+      repsZona.forEach((r) => {
+        const selected =
+          (p.repartidor && p.repartidor._id === r._id) ||
+          p.repartidorId === r._id
+            ? "selected"
+            : "";
+        opciones += `<option value="${r._id}" ${selected}>${r.nombre}</option>`;
+      });
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${p.clienteNombre}</td>
         <td>${p.direccion}</td>
-        <td>${p.zona ? p.zona.nombre + " (" + p.zona.codigo + ")" : ""}</td>
-        <td>${p.repartidor ? p.repartidor.nombre : "Sin asignar"}</td>
+        <td>${zonaCod ? "Zona " + zonaCod : ""}</td>
+        <td>
+          <select class="form-select form-select-sm"
+                  onchange="asignarRepartidorSelect('${p._id}', this.value)">
+            ${opciones}
+          </select>
+        </td>
         <td>${p.estado}</td>
         <td>
-          <button class="btn btn-sm btn-outline-secondary mb-1" onclick="asignarRepartidor('${p._id}')">
-            Asignar
+          <button class="btn btn-sm btn-outline-secondary mb-1"
+                  onclick="cambiarEstado('${p._id}')">
+            Cambiar estado
           </button>
-          <button class="btn btn-sm btn-outline-warning mb-1" onclick="cambiarEstado('${p._id}', 'en_camino')">
-            En camino
+          <button class="btn btn-sm btn-outline-primary mb-1"
+                  onclick="editarPedido('${p._id}')">
+            Editar
           </button>
-          <button class="btn btn-sm btn-outline-success mb-1" onclick="cambiarEstado('${p._id}', 'entregado')">
-            Entregado
+          <button class="btn btn-sm btn-outline-danger mb-1"
+                  onclick="eliminarPedido('${p._id}')">
+            Eliminar
           </button>
         </td>
       `;
@@ -213,62 +301,220 @@
     });
   }
 
-  // Crear pedido
-  document.getElementById("form-pedido").addEventListener("submit", async e => {
+  // ------- CARGAR PEDIDOS --------
+  async function cargarPedidos() {
+    try {
+      const res = await fetch(`${API}/pedidos`);
+      pedidosCache = await res.json();
+      renderPedidos(pedidosCache);
+    } catch (err) {
+      console.error("Error cargando pedidos:", err);
+    }
+  }
+
+  // ------- FORM: CREAR / ACTUALIZAR --------
+  formPedido.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const clienteNombre = document.getElementById("cliente").value;
     const clienteTelefono = document.getElementById("telefonoCliente").value;
     const direccion = document.getElementById("direccion").value;
-    const zona = document.getElementById("zona").value;
+    const zonaCodigo = document.getElementById("zonaCodigo").value; // NORTE / SUR
     const notas = document.getElementById("notas").value;
+    const estado = document.getElementById("estado").value;
 
-    await fetch(`${API}/pedidos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clienteNombre, clienteTelefono, direccion, zona, notas })
-    });
-
-    e.target.reset();
-    cargarPedidos();
-  });
-
-  // Asignar repartidor
-  async function asignarRepartidor(idPedido) {
-    const reps = await getRepartidores();
-    if (!reps.length) {
-      alert("No hay repartidores registrados.");
+    if (!zonaCodigo) {
+      alert("Selecciona una zona (NORTE o SUR)");
       return;
     }
 
-    let lista = reps.map(r => `${r._id} - ${r.nombre}`).join("\n");
-    const elegido = prompt("Escribe el ID del repartidor a asignar:\n\n" + lista);
-    if (!elegido) return;
+    const payload = {
+      clienteNombre,
+      clienteTelefono,
+      direccion,
+      zonaCodigo,
+      notas,
+      estado,
+    };
 
-    await fetch(`${API}/pedidos/${idPedido}/asignar`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repartidorId: elegido })
-    });
+    try {
+      let url = `${API}/pedidos`;
+      let method = "POST";
 
-    cargarPedidos();
+      if (editingPedidoId) {
+        url = `${API}/pedidos/${editingPedidoId}`;
+        method = "PUT";
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al guardar pedido: " + (data.error || res.statusText));
+        return;
+      }
+
+      resetForm();
+      await cargarPedidos();
+    } catch (err) {
+      console.error("Error guardando pedido:", err);
+      alert("Error de red al guardar el pedido");
+    }
+  });
+
+  function resetForm() {
+    formPedido.reset();
+    editingPedidoId = null;
+    btnGuardar.textContent = "Guardar pedido";
+    btnCancelarEdicion.classList.add("d-none");
+    tituloForm.textContent = "Registrar nuevo pedido";
+    document.getElementById("estado").value = "pendiente";
   }
 
-  // Cambiar estado
-  async function cambiarEstado(idPedido, nuevoEstado) {
-    await fetch(`${API}/pedidos/${idPedido}/estado`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado: nuevoEstado })
-    });
+  // ------- EDITAR PEDIDO --------
+  async function editarPedido(idPedido) {
+    try {
+      const res = await fetch(`${API}/pedidos/${idPedido}`);
+      if (!res.ok) {
+        alert("No se pudo obtener el pedido.");
+        return;
+      }
+      const p = await res.json();
 
-    cargarPedidos();
+      document.getElementById("cliente").value = p.clienteNombre || "";
+      document.getElementById("telefonoCliente").value =
+        p.clienteTelefono || "";
+      document.getElementById("direccion").value = p.direccion || "";
+      document.getElementById("zonaCodigo").value = p.zonaCodigo || "";
+      document.getElementById("notas").value = p.notas || "";
+      document.getElementById("estado").value = p.estado || "pendiente";
+
+      editingPedidoId = idPedido;
+      btnGuardar.textContent = "Actualizar pedido";
+      btnCancelarEdicion.classList.remove("d-none");
+      tituloForm.textContent = "Editar pedido";
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      console.error("Error al editar pedido:", err);
+    }
   }
 
-  document.getElementById("btn-recargar").addEventListener("click", cargarPedidos);
+  btnCancelarEdicion.addEventListener("click", resetForm);
 
-  cargarZonas();
-  cargarPedidos();
+  // ------- ELIMINAR PEDIDO --------
+  async function eliminarPedido(idPedido) {
+    if (!confirm("¿Seguro que deseas eliminar este pedido?")) return;
+
+    try {
+      const res = await fetch(`${API}/pedidos/${idPedido}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al eliminar pedido: " + (data.error || res.statusText));
+        return;
+      }
+
+      await cargarPedidos();
+    } catch (err) {
+      console.error("Error eliminando pedido:", err);
+    }
+  }
+
+  // ------- ASIGNAR REPARTIDOR DESDE EL SELECT --------
+  async function asignarRepartidorSelect(idPedido, repartidorId) {
+    try {
+      const res = await fetch(`${API}/pedidos/${idPedido}/asignar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repartidorId: repartidorId || null }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al asignar repartidor: " + (data.error || res.statusText));
+        await cargarPedidos();
+        return;
+      }
+
+      await cargarPedidos();
+    } catch (err) {
+      console.error("Error asignando repartidor:", err);
+      alert("Error de red al asignar repartidor");
+    }
+  }
+
+  // ------- CAMBIAR ESTADO --------
+  async function cambiarEstado(idPedido) {
+    const actual =
+      (pedidosCache.find((p) => p._id === idPedido) || {}).estado ||
+      "pendiente";
+
+    const nuevoEstado = prompt(
+      "Nuevo estado (pendiente, asignado, en_camino, entregado, cancelado):",
+      actual
+    );
+    if (!nuevoEstado) return;
+
+    try {
+      const res = await fetch(`${API}/pedidos/${idPedido}/estado`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: nuevoEstado }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al cambiar estado: " + (data.error || res.statusText));
+        return;
+      }
+
+      await cargarPedidos();
+    } catch (err) {
+      console.error("Error cambiando estado:", err);
+    }
+  }
+
+  // ------- FILTRAR POR ZONA (fragmentación horizontal) --------
+  function filtrarPorZona(codigoZona) {
+    if (!codigoZona) {
+      renderPedidos(pedidosCache);
+      return;
+    }
+
+    const cod = codigoZona.toUpperCase();
+    const filtrados = pedidosCache.filter(
+      (p) => (p.zonaCodigo || "").toUpperCase() === cod
+    );
+    renderPedidos(filtrados);
+  }
+
+  // Botón recargar
+  document
+    .getElementById("btn-recargar")
+    .addEventListener("click", async () => {
+      await cargarRepartidoresPorZona();
+      await cargarPedidos();
+    });
+
+  // Hacer funciones accesibles desde el HTML
+  window.editarPedido = editarPedido;
+  window.eliminarPedido = eliminarPedido;
+  window.asignarRepartidorSelect = asignarRepartidorSelect;
+  window.cambiarEstado = cambiarEstado;
+  window.filtrarPorZona = filtrarPorZona;
+
+  // ------- INICIALIZACIÓN --------
+  (async () => {
+    await cargarRepartidoresPorZona();
+    await cargarPedidos();
+  })();
 </script>
 
 <script>
@@ -277,12 +523,10 @@
     try {
       const res = await fetch("/auth/user");
       if (res.status === 401) {
-        // No hay sesión → mandar a login
         window.location.href = "/login.html";
       } else {
         const data = await res.json();
         console.log("Usuario logueado:", data.user?.nombre);
-        // Aquí podrías poner el nombre en la navbar si quieres
       }
     } catch (err) {
       console.error("Error verificando autenticación:", err);
@@ -290,7 +534,6 @@
     }
   }
 
-  // Ejecutar verificación al cargar la página
   checkAuth();
 </script>
 

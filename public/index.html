@@ -2,9 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Inicio - Sistema de Entregas</title>
+  <title>Sistema de Gestión de Entregas</title>
 
-  <!-- Bootstrap -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     rel="stylesheet"
@@ -14,12 +13,14 @@
     :root {
       --yuri-purple: #8b5cf6;
       --yuri-purple-dark: #6d28d9;
-      --yuri-purple-light: #f3e8ff;
+      --yuri-pink: #ec4899;
+      --yuri-bg: #fdf2ff;
     }
 
     body {
       background: linear-gradient(135deg, #fdf2ff, #e9d5ff);
       min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .navbar-yuri {
@@ -43,130 +44,195 @@
       font-weight: 600;
     }
 
-    .btn-primary {
-      background-color: var(--yuri-purple);
-      border-color: var(--yuri-purple);
+    .btn-logout {
+      border-radius: 999px;
+      border: 1px solid #ef4444;
+      color: #b91c1c;
+      background-color: #fff;
+      padding: 6px 14px;
+      font-size: 0.9rem;
     }
 
-    .btn-primary:hover {
-      background-color: var(--yuri-purple-dark);
-      border-color: var(--yuri-purple-dark);
+    .btn-logout:hover {
+      background-color: #fee2e2;
     }
 
     .card-yuri {
-      border-radius: 18px;
+      border-radius: 24px;
       border: none;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      background: #ffffff;
     }
 
     .card-yuri-header {
       height: 6px;
-      background: linear-gradient(90deg, var(--yuri-purple), #ec4899);
+      border-radius: 24px 24px 0 0;
+      background: linear-gradient(90deg, var(--yuri-purple), var(--yuri-pink));
+    }
+
+    .card-yuri-title {
+      color: #4c1d95;
+      font-weight: 800;
+      font-size: 1.6rem;
+    }
+
+    .card-yuri-text {
+      color: #6b7280;
+      font-size: 0.98rem;
+    }
+
+    .btn-card {
+      border-radius: 999px;
+      padding-inline: 26px;
+      font-weight: 600;
+      background: linear-gradient(90deg, var(--yuri-purple), var(--yuri-pink));
+      border: none;
+    }
+
+    .btn-card:hover {
+      filter: brightness(0.95);
     }
   </style>
 </head>
 <body>
 
 <div class="container py-4">
-
-  <h1 class="text-center fw-bold mb-2" style="color: #4c1d95;">
+  <h1 class="text-center fw-bold mb-2" style="color:#4c1d95;">
     Sistema de Gestión de Entregas
   </h1>
   <p class="text-center text-secondary mb-4">
-    Administra zonas, repartidores y pedidos de forma centralizada.
+    Administra repartidores, pedidos y reportes de entrega de forma centralizada.
   </p>
 
-  <!-- Navbar -->
+  <!-- Navbar superior -->
   <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="/">BIENVENIDOS</a>
+      <!-- AQUÍ CAMBIAMOS LA BIENVENIDA DINÁMICA -->
+      <a class="navbar-brand fw-bold" href="/" id="navbar-user-greeting">Bienvenida</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
-<ul class="navbar-nav ms-auto">
-  <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
-  <li class="nav-item"><a class="nav-link" href="/repartidores.html">Repartidores</a></li>
-  <li class="nav-item"><a class="nav-link" href="/pedidos.html">Pedidos</a></li>
-
-  <!-- Botón de cerrar sesión -->
-  <li class="nav-item ms-3">
-    <a href="/auth/logout" 
-       class="btn btn-outline-danger btn-sm"
-       style="border-radius: 20px;">
-      Cerrar sesión
-    </a>
-  </li>
-</ul>
 
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link active" href="/">Inicio</a></li>
-          <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
-          <li class="nav-item"><a class="nav-link" href="/repartidores.html">Repartidores</a></li>
-          <li class="nav-item"><a class="nav-link" href="/pedidos.html">Pedidos</a></li>
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">Inicio</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/repartidores.html">Repartidores</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/pedidos.html">Pedidos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/reportes.html">Reportes de entrega</a>
+          </li>
+          <li class="nav-item ms-3">
+            <button class="btn btn-logout" type="button" onclick="logout()">
+              Cerrar sesión
+            </button>
+          </li>
         </ul>
       </div>
     </div>
   </nav>
-  
 
-  <!-- Tarjetas -->
-  <div class="row g-4 justify-content-center">
-
+  <!-- Tarjetas principales -->
+  <div class="row g-4 mt-1">
+    <!-- Repartidores -->
     <div class="col-md-4">
       <div class="card card-yuri h-100">
         <div class="card-yuri-header"></div>
-        <div class="card-body text-center">
-          <h3 class="card-title fw-bold" style="color:#4c1d95;">Zonas</h3>
-          <p class="text-secondary">
-            Registra y organiza las zonas de entrega como NORTE, SUR o CENTRO.
+        <div class="card-body">
+          <h3 class="card-yuri-title mb-2">Repartidores</h3>
+          <p class="card-yuri-text mb-4">
+            Administra repartidores, sus datos de contacto y la zona en la que trabajan (NORTE, CENTRO o SUR).
           </p>
-          <a href="/zonas.html" class="btn btn-primary">Gestionar Zonas</a>
+          <button
+            class="btn btn-card"
+            type="button"
+            onclick="location.href='/repartidores.html'"
+          >
+            Gestionar Repartidores
+          </button>
         </div>
       </div>
     </div>
 
+    <!-- Pedidos -->
     <div class="col-md-4">
       <div class="card card-yuri h-100">
         <div class="card-yuri-header"></div>
-        <div class="card-body text-center">
-          <h3 class="card-title fw-bold" style="color:#4c1d95;">Repartidores</h3>
-          <p class="text-secondary">
-            Administra repartidores, datos de contacto y su zona asignada.
+        <div class="card-body">
+          <h3 class="card-yuri-title mb-2">Pedidos</h3>
+          <p class="card-yuri-text mb-4">
+            Registra pedidos, elige la zona (NORTE, CENTRO o SUR), asigna repartidor
+            y actualiza el estado de entrega.
           </p>
-          <a href="/repartidores.html" class="btn btn-primary">Gestionar Repartidores</a>
+          <button
+            class="btn btn-card"
+            type="button"
+            onclick="location.href='/pedidos.html'"
+          >
+            Gestionar Pedidos
+          </button>
         </div>
       </div>
     </div>
 
+    <!-- Reportes de entrega -->
     <div class="col-md-4">
       <div class="card card-yuri h-100">
         <div class="card-yuri-header"></div>
-        <div class="card-body text-center">
-          <h3 class="card-title fw-bold" style="color:#4c1d95;">Pedidos</h3>
-          <p class="text-secondary">
-            Registra pedidos, asigna repartidores y actualiza su estado.
+        <div class="card-body">
+          <h3 class="card-yuri-title mb-2">Reportes de entrega</h3>
+          <p class="card-yuri-text mb-4">
+            Consulta estadísticas y reportes de las entregas realizadas por zona,
+            repartidor y estado del pedido.
           </p>
-          <a href="/pedidos.html" class="btn btn-primary">Gestionar Pedidos</a>
+          <button
+            class="btn btn-card"
+            type="button"
+            onclick="location.href='/reportes.html'"
+          >
+            Ver reportes
+          </button>
         </div>
       </div>
     </div>
-
   </div>
 </div>
+
 <script>
-  // Verificar si el usuario está autenticado
+  // Cerrar sesión
+  async function logout() {
+    try {
+      await fetch("/auth/logout");
+      window.location.href = "/login.html";
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err);
+    }
+  }
+
+  // Verificar autenticación y poner "Hola NOMBRE" en la navbar
   async function checkAuth() {
     try {
       const res = await fetch("/auth/user");
       if (res.status === 401) {
-        // No hay sesión → mandar a login
         window.location.href = "/login.html";
       } else {
         const data = await res.json();
         console.log("Usuario logueado:", data.user?.nombre);
-        // Aquí podrías poner el nombre en la navbar si quieres
+
+        const greetingEl = document.getElementById("navbar-user-greeting");
+        if (greetingEl && data.user) {
+          const nombre =
+            data.user.nombre ||
+            data.user.displayName ||
+            data.user.email ||
+            "";
+          greetingEl.textContent = nombre ? `Hola ${nombre}` : "Bienvenida";
+        }
       }
     } catch (err) {
       console.error("Error verificando autenticación:", err);
@@ -174,7 +240,6 @@
     }
   }
 
-  // Ejecutar verificación al cargar la página
   checkAuth();
 </script>
 

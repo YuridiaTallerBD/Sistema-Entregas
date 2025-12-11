@@ -7,12 +7,12 @@ import session from "express-session";
 import passport from "passport";
 
 import { connectDB } from "./config/db.js";
-import "./config/passport.js";     // 👈 importante para registrar la estrategia
+import "./config/passport.js";
 
 import zonasRoutes from "./routes/zonasRoutes.js";
 import repartidoresRoutes from "./routes/repartidoresRoutes.js";
 import pedidosRoutes from "./routes/pedidosRoutes.js";
-import authRoutes from "./routes/authRoutes.js";   // 👈 IMPORTANTE
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
@@ -30,7 +30,7 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET || "supersecreto",
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
   })
 );
 
@@ -38,15 +38,15 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Archivos estáticos
+// Archivos estáticos (tu frontend HTML/CSS/JS)
 app.use(express.static(path.join(__dirname, "../public")));
 
 connectDB();
 
-// Rutas de autenticación 👇
+// Rutas de autenticación
 app.use("/auth", authRoutes);
 
-// Protección opcional de APIs (si ya lo pusimos)
+// Middleware opcional para proteger APIs
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
@@ -54,7 +54,7 @@ function ensureAuth(req, res, next) {
   return res.status(401).json({ error: "No autenticado" });
 }
 
-// Rutas API (pueden ir con ensureAuth o sin él por ahora)
+// Rutas API
 app.use("/api/zonas", /*ensureAuth,*/ zonasRoutes);
 app.use("/api/repartidores", /*ensureAuth,*/ repartidoresRoutes);
 app.use("/api/pedidos", /*ensureAuth,*/ pedidosRoutes);

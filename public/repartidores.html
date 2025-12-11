@@ -18,6 +18,7 @@
     body {
       background: linear-gradient(135deg, #fdf2ff, #e9d5ff);
       min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .navbar-yuri {
@@ -57,6 +58,7 @@
       border-radius: 18px;
       border: none;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      background: #ffffff;
     }
 
     .table thead {
@@ -73,7 +75,7 @@
 
 <div class="container py-4">
   <h1 class="text-center fw-bold mb-2" style="color:#4c1d95;">Sistema de Entregas</h1>
-  <p class="text-center text-secondary mb-4">Gestión de Repartidores</p>
+  <p class="text-center text-secondary mb-4">Registro de Repartidores</p>
 
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3">
@@ -85,9 +87,15 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/zonas.html">Zonas</a></li>
-          <li class="nav-item"><a class="nav-link active" href="/repartidores.html">Repartidores</a></li>
-          <li class="nav-item"><a class="nav-link" href="/pedidos.html">Pedidos</a></li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/repartidores.html">Repartidores</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/pedidos.html">Pedidos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/reportes.html">Reportes de entrega</a>
+          </li>
         </ul>
       </div>
     </div>
@@ -96,7 +104,7 @@
   <!-- Formulario -->
   <div class="card card-yuri mb-4">
     <div class="card-body">
-      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar nuevo repartidor</h3>
+      <h3 class="fw-bold mb-3" style="color:#4c1d95;">Registrar </h3>
 
       <form id="form-repartidor">
         <div class="mb-3">
@@ -120,12 +128,22 @@
 
         <div class="mb-3">
           <label class="form-label">Zona</label>
-          <select id="zona" class="form-select" required>
+          <!-- SOLO NORTE / SUR, valor = zonaCodigo -->
+          <select id="zonaCodigo" class="form-select" required>
             <option value="">-- Selecciona una zona --</option>
+            <option value="NORTE">Zona NORTE</option>
+            <option value="SUR">Zona SUR</option>
           </select>
         </div>
 
-        <button type="submit" class="btn btn-success">Guardar repartidor</button>
+        <div class="d-flex gap-2">
+          <button type="submit" id="btn-guardar" class="btn btn-success">
+            Guardar repartidor
+          </button>
+          <button type="button" id="btn-cancelar-edicion" class="btn btn-outline-secondary btn-sm" style="display:none;">
+            Cancelar edición
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -135,9 +153,14 @@
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h3 class="fw-bold mb-0" style="color:#4c1d95;">Repartidores registrados</h3>
-        <button id="btn-recargar" class="btn btn-outline-primary btn-sm">
-          Recargar
-        </button>
+        <div class="d-flex gap-2">
+          <button id="btn-ver-todos" class="btn btn-outline-secondary btn-sm">
+            Ver todos
+          </button>
+          <button id="btn-recargar" class="btn btn-outline-primary btn-sm">
+            Recargar
+          </button>
+        </div>
       </div>
 
       <div class="table-responsive">
@@ -149,6 +172,7 @@
               <th>Vehículo</th>
               <th>Zona</th>
               <th>ID</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-repartidores"></tbody>
@@ -156,101 +180,204 @@
       </div>
     </div>
   </div>
+
+  <!-- Fragmentación horizontal -->
+  <div class="card card-yuri mt-4">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3" style="color:#4c1d95;">
+        Ver repartidores por zona (fragmentación horizontal)
+      </h5>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" data-zona-fragmento="NORTE">Ver zona NORTE</button>
+        <button class="btn btn-primary" data-zona-fragmento="SUR">Ver zona SUR</button>
+      </div>
+      <p class="mt-2 mb-0 text-muted small">
+        Estos botones muestran solo los repartidores de cada zona (NORTE y SUR),
+        simulando la <strong>fragmentación horizontal por zona</strong> de tu base de datos distribuida.
+      </p>
+    </div>
+  </div>
 </div>
 
 <script>
   const API_BASE = "/api";
+  let repartidoresCache = [];
+  let editandoId = null;
 
-  async function cargarZonasSelect() {
-    try {
-      const res = await fetch(`${API_BASE}/zonas`);
-      const zonas = await res.json();
-      const selectZona = document.getElementById("zona");
-      selectZona.innerHTML = '<option value="">-- Selecciona una zona --</option>';
+  const form = document.getElementById("form-repartidor");
+  const btnGuardar = document.getElementById("btn-guardar");
+  const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
 
-      zonas.forEach(z => {
-        const opt = document.createElement("option");
-        opt.value = z._id;
-        opt.textContent = `${z.nombre} (${z.codigo})`;
-        selectZona.appendChild(opt);
-      });
-    } catch (err) {
-      alert("Error al cargar zonas: " + err.message);
-    }
+  function limpiarFormulario() {
+    form.reset();
+    document.getElementById("vehiculo").value = "Moto";
+    document.getElementById("zonaCodigo").value = "";
+    editandoId = null;
+    btnGuardar.textContent = "Guardar repartidor";
+    btnCancelarEdicion.style.display = "none";
   }
 
-  async function cargarRepartidores() {
+  function pintarTabla(lista) {
+    const tbody = document.getElementById("tabla-repartidores");
+    tbody.innerHTML = "";
+
+    lista.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.nombre}</td>
+        <td>${r.telefono || ""}</td>
+        <td>${r.vehiculo || ""}</td>
+        <td>${r.zonaCodigo ? "Zona " + r.zonaCodigo : ""}</td>
+        <td class="small text-muted">${r._id}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary me-1" onclick="editarRepartidor('${r._id}')">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarRepartidor('${r._id}')">Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Cargar todos y, si se pasa zona, filtrar por zonaCodigo
+  async function cargarRepartidores(codigoZona = null) {
     try {
       const res = await fetch(`${API_BASE}/repartidores`);
-      const reps = await res.json();
-      const tbody = document.getElementById("tabla-repartidores");
-      tbody.innerHTML = "";
+      repartidoresCache = await res.json();
 
-      reps.forEach(r => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${r.nombre}</td>
-          <td>${r.telefono || ""}</td>
-          <td>${r.vehiculo || ""}</td>
-          <td>${r.zona ? r.zona.nombre + " (" + r.zona.codigo + ")" : ""}</td>
-          <td class="small text-muted">${r._id}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } catch (err) {
-      alert("Error al cargar repartidores: " + err.message);
+      let lista = repartidoresCache;
+      if (codigoZona) {
+        const cod = codigoZona.toUpperCase();
+        lista = repartidoresCache.filter(r =>
+          (r.zonaCodigo || "").toUpperCase() === cod
+        );
+      }
+      pintarTabla(lista);
+    } catch (error) {
+      alert("Error al cargar repartidores: " + error.message);
     }
   }
 
-  document.getElementById("form-repartidor").addEventListener("submit", async e => {
+  // Crear / actualizar
+  form.addEventListener("submit", async e => {
     e.preventDefault();
     const nombre = document.getElementById("nombre").value;
     const telefono = document.getElementById("telefono").value;
     const vehiculo = document.getElementById("vehiculo").value;
-    const zona = document.getElementById("zona").value;
+    const zonaCodigo = document.getElementById("zonaCodigo").value;
 
-    if (!zona) {
-      alert("Selecciona una zona");
+    if (!zonaCodigo) {
+      alert("Selecciona una zona (NORTE o SUR)");
       return;
     }
 
+    const cuerpo = { nombre, telefono, vehiculo, zonaCodigo };
+
     try {
-      const res = await fetch(`${API_BASE}/repartidores`, {
-        method: "POST",
+      let url = `${API_BASE}/repartidores`;
+      let method = "POST";
+
+      if (editandoId) {
+        url = `${API_BASE}/repartidores/${editandoId}`;
+        method = "PUT";
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono, vehiculo, zona })
+        body: JSON.stringify(cuerpo)
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        alert("Error al crear repartidor: " + (data.error || res.statusText));
+        const data = await res.json().catch(() => ({}));
+        alert("Error al guardar repartidor: " + (data.error || res.statusText));
         return;
       }
 
-      e.target.reset();
+      limpiarFormulario();
       cargarRepartidores();
     } catch (err) {
       alert("Error de red: " + err.message);
     }
   });
 
-  document.getElementById("btn-recargar").addEventListener("click", cargarRepartidores);
+  // Editar
+  function editarRepartidor(id) {
+    const r = repartidoresCache.find(x => x._id === id);
+    if (!r) {
+      alert("Repartidor no encontrado");
+      return;
+    }
 
-  cargarZonasSelect();
-  cargarRepartidores();
-</script>
-<script>
-  // Verificar si el usuario está autenticado
+    document.getElementById("nombre").value = r.nombre || "";
+    document.getElementById("telefono").value = r.telefono || "";
+    document.getElementById("vehiculo").value = r.vehiculo || "Moto";
+    document.getElementById("zonaCodigo").value = r.zonaCodigo || "";
+
+    editandoId = id;
+    btnGuardar.textContent = "Actualizar repartidor";
+    btnCancelarEdicion.style.display = "inline-block";
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Eliminar
+  async function eliminarRepartidor(id) {
+    if (!confirm("¿Seguro que deseas eliminar este repartidor?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/repartidores/${id}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Error al eliminar repartidor: " + (data.error || res.statusText));
+        return;
+      }
+
+      cargarRepartidores();
+    } catch (error) {
+      alert("Error de red: " + error.message);
+    }
+  }
+
+  // Hacer globales
+  window.editarRepartidor = editarRepartidor;
+  window.eliminarRepartidor = eliminarRepartidor;
+
+  // Botones varios
+  document.getElementById("btn-recargar").addEventListener("click", () => {
+    limpiarFormulario();
+    cargarRepartidores();
+  });
+
+  document.getElementById("btn-ver-todos").addEventListener("click", () => {
+    limpiarFormulario();
+    cargarRepartidores();
+  });
+
+  btnCancelarEdicion.addEventListener("click", () => {
+    limpiarFormulario();
+  });
+
+  // Botones de fragmentación horizontal
+  document.querySelectorAll("[data-zona-fragmento]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const codigo = btn.getAttribute("data-zona-fragmento");
+      limpiarFormulario();
+      cargarRepartidores(codigo);
+    });
+  });
+
+  // Verificar autenticación
   async function checkAuth() {
     try {
       const res = await fetch("/auth/user");
       if (res.status === 401) {
-        // No hay sesión → mandar a login
         window.location.href = "/login.html";
       } else {
         const data = await res.json();
         console.log("Usuario logueado:", data.user?.nombre);
-        // Aquí podrías poner el nombre en la navbar si quieres
       }
     } catch (err) {
       console.error("Error verificando autenticación:", err);
@@ -258,8 +385,11 @@
     }
   }
 
-  // Ejecutar verificación al cargar la página
-  checkAuth();
+  // Inicializar
+  (async () => {
+    await checkAuth();
+    await cargarRepartidores();
+  })();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

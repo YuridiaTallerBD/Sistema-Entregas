@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reportes de entrega - Sistema de Entregas</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --yuri-purple: #8b5cf6;
+      --yuri-purple-dark: #6d28d9;
+      --yuri-pink: #ec4899;
+    }
+
+    body {
+      background: linear-gradient(135deg, #fdf2ff, #e9d5ff);
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .navbar-yuri {
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+    }
+
+    .navbar-yuri .navbar-brand {
+      color: var(--yuri-purple-dark);
+    }
+
+    .navbar-yuri .nav-link {
+      color: #6b7280;
+    }
+
+    .navbar-yuri .nav-link:hover,
+    .navbar-yuri .nav-link.active {
+      color: var(--yuri-purple-dark);
+      font-weight: 600;
+    }
+
+    .card-yuri {
+      border-radius: 18px;
+      border: none;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      background: #ffffff;
+    }
+
+    .stat-card {
+      border-radius: 18px;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      background: #ffffff;
+    }
+
+    .stat-title {
+      font-size: 0.9rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #4c1d95;
+    }
+
+    .badge-zona {
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+    }
+
+    .badge-norte {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .badge-sur {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <h1 class="text-center fw-bold mb-2" style="color:#4c1d95;">
+    Reportes de entrega
+  </h1>
+  <p class="text-center text-secondary mb-4">
+    Consulta estadísticas de los pedidos por zona (NORTE / SUR), estado y repartidor.
+  </p>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light navbar-yuri px-3 mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/">INICIO</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/repartidores.html">Repartidores</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/pedidos.html">Pedidos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/reportes.html">Reportes de entrega</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Filtros -->
+  <div class="card card-yuri mb-4">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3" style="color:#4c1d95;">Filtros</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Zona</label>
+          <select id="filtro-zona" class="form-select">
+            <option value="">Todas</option>
+            <option value="NORTE">Zona NORTE</option>
+            <option value="SUR">Zona SUR</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Estado</label>
+          <select id="filtro-estado" class="form-select">
+            <option value="">Todos</option>
+            <option value="pendiente">pendiente</option>
+            <option value="asignado">asignado</option>
+            <option value="en_camino">en_camino</option>
+            <option value="entregado">entregado</option>
+            <option value="cancelado">cancelado</option>
+          </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end gap-2">
+          <button class="btn btn-primary w-50" onclick="aplicarFiltros()">
+            Aplicar filtros
+          </button>
+          <button class="btn btn-outline-secondary w-50" onclick="limpiarFiltros()">
+            Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estadísticas -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stat-card p-3">
+        <div class="stat-title">Total pedidos</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card p-3">
+        <div class="stat-title">Entregados</div>
+        <div class="stat-value" id="stat-entregados">0</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card p-3">
+        <div class="stat-title">Pendientes</div>
+        <div class="stat-value" id="stat-pendientes">0</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card p-3">
+        <div class="stat-title">En camino</div>
+        <div class="stat-value" id="stat-encamino">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de pedidos -->
+  <div class="card card-yuri">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3" style="color:#4c1d95;">Detalle de pedidos</h5>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Zona</th>
+              <th>Repartidor</th>
+              <th>Estado</th>
+              <th>Dirección</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-reportes"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = "/api";
+  let pedidosOriginal = [];
+  let pedidosFiltrados = [];
+
+  function zonaBadge(cod) {
+    const c = (cod || "").toUpperCase();
+    if (c === "NORTE") {
+      return `<span class="badge badge-zona badge-norte">Zona NORTE</span>`;
+    }
+    if (c === "SUR") {
+      return `<span class="badge badge-zona badge-sur">Zona SUR</span>`;
+    }
+    return "";
+  }
+
+  function renderTabla(lista) {
+    const tbody = document.getElementById("tabla-reportes");
+    tbody.innerHTML = "";
+
+    if (!lista.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="text-center text-muted">No hay pedidos con esos filtros.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    lista.forEach(p => {
+      const tr = document.createElement("tr");
+      const zonaCod = p.zonaCodigo || "";
+      const repNombre = p.repartidor ? p.repartidor.nombre : "Sin asignar";
+
+      tr.innerHTML = `
+        <td>${p.clienteNombre}</td>
+        <td>${zonaBadge(zonaCod)}</td>
+        <td>${repNombre}</td>
+        <td>${p.estado}</td>
+        <td>${p.direccion}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function actualizarStats(lista) {
+    const total = lista.length;
+    const entregados = lista.filter(p => p.estado === "entregado").length;
+    const pendientes = lista.filter(p => p.estado === "pendiente").length;
+    const encamino = lista.filter(p => p.estado === "en_camino").length;
+
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-entregados").textContent = entregados;
+    document.getElementById("stat-pendientes").textContent = pendientes;
+    document.getElementById("stat-encamino").textContent = encamino;
+  }
+
+  function aplicarFiltros() {
+    const zonaSel = (document.getElementById("filtro-zona").value || "").toUpperCase();
+    const estadoSel = document.getElementById("filtro-estado").value;
+
+    pedidosFiltrados = pedidosOriginal.filter(p => {
+      const z = (p.zonaCodigo || "").toUpperCase();
+      if (zonaSel && z !== zonaSel) return false;
+      if (estadoSel && p.estado !== estadoSel) return false;
+      return true;
+    });
+
+    actualizarStats(pedidosFiltrados);
+    renderTabla(pedidosFiltrados);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById("filtro-zona").value = "";
+    document.getElementById("filtro-estado").value = "";
+    pedidosFiltrados = [...pedidosOriginal];
+    actualizarStats(pedidosFiltrados);
+    renderTabla(pedidosFiltrados);
+  }
+
+  async function cargarReportes() {
+    const res = await fetch(`${API}/pedidos`);
+    pedidosOriginal = await res.json();
+    pedidosFiltrados = [...pedidosOriginal];
+    actualizarStats(pedidosFiltrados);
+    renderTabla(pedidosFiltrados);
+  }
+
+  // AUTH
+  async function checkAuth() {
+    try {
+      const res = await fetch("/auth/user");
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+      } else {
+        const data = await res.json();
+        console.log("Usuario logueado:", data.user?.nombre);
+      }
+    } catch (err) {
+      console.error("Error verificando autenticación:", err);
+      window.location.href = "/login.html";
+    }
+  }
+
+  (async () => {
+    await checkAuth();
+    await cargarReportes();
+  })();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
